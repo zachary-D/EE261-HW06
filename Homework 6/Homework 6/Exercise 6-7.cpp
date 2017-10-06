@@ -9,13 +9,24 @@ using std::endl;
 
 using std::string;
 
+const string inputFile = "mailTest.dat";
+const string outputFile = "addresses.dat";
+
+std::ifstream fileIn;
+std::ofstream fileOut;
+
+//Variables for controlling the test data generator
+const int lowCharBound = 32;
+const int highCharBound = 126;
+
+const int numTests = 10000;
 
 bool isValid(char inp)		//Returns true when 'inp' is a valid, and can be in an email address
 {
 	return ('a' <= inp && inp <= 'z') || ('A' <= inp && inp <= 'Z') || ('0' <= inp && inp <= '9') || inp == '_' || inp == '.';
 }
 
-string extractEmailFrom(string line)
+void extractEmailFrom(string line)
 {
 	int center = line.find('@');	//The position of the '@' symbol in the email (aka the 'center' of the email)
 	int current = center;		//The current position being processed in the string
@@ -29,7 +40,6 @@ string extractEmailFrom(string line)
 		current--;
 		if (current == -1)
 		{
-			current--;
 			break;
 		}
 	} while (isValid(line[current]));
@@ -51,16 +61,21 @@ string extractEmailFrom(string line)
 	//Extract the substring that is the address
 	string address = line.substr(beginning, end - beginning);
 
+
 	//Preform some validation, make sure the address is in the format
 	// name@domain.com, and remove any trailing characters if they
 	// violate this (used to correct from trailing periods)
 
 	center = address.find('@');
 
-	int firstPeriod = address.find('.', center);	//The position of
-													//the first period
 
-	int secondPeriod = address.find('.', firstPeriod + 1);
+	int firstPeriod = address.find('.', center);	//The position of
+													//the first period after the '@'
+
+	if (firstPeriod == string::npos) return;	//If there's no period, this email is invalid
+
+	int secondPeriod = address.find('.', firstPeriod + 1);	//The position of the second period after the '@'
+															//(if it exists)
 
 	if (secondPeriod != string::npos)
 	{
@@ -68,102 +83,76 @@ string extractEmailFrom(string line)
 		address = address.substr(0, secondPeriod);
 	}
 
+	//Check for ".." or ".@" or "@.", as these can't exist inside a valid address
+	for (int iter = 0; iter < address.size() - 2; iter++)		//The loop is limited to address.size() -2
+																//the loop will be addressing the current
+																//element and the one after it
+	{
+		string curr = address.substr(iter, 2);
+		if (curr == ".." || curr == ".@" || curr == "@.") return;
+			
+	}
+
+	if (center == 0 || center == address.size() - 1) return;	//If the '@' sign is the first or last
+																//character in the email, it is invalid
+
+	//There can't be periods without valid characters surrounding them
+	if (address[0] == '.' || address[address.size() - 1] == '.') return;
+
 	cout << "Address found: " << address << endl;
 
-	return address;
+	fileOut << address << endl;
 }
-
-
-const string inputFile = "mail.dat";
-const string outputFile = "addresses.dat";
-
-std::ifstream fileIn;
-std::ofstream fileOut;
-
-const int lowCharBound = 32;
-const int highCharBound = 126;
-
-
-
-void generateTestData()
-{
-	
-
-	string outputData;
-
-	const int strLength = 10;
-	for (int i = 0; i < strLength; i++)
-	{
-		outputData.push_back(lowCharBound);
-	}
-	fileOut.open(inputFile);
-
-	while (true)
-	{
-		//Make sure all the characters are within the bounds
-		for (int addr = outputData.size() - 1; addr >= 0; addr--)
-		{
-
-			if (outputData[addr] > highCharBound)
-			{
-				if (addr == 0) break;
-				else {
-					outputData[addr - 1]++;
-					outputData[addr] = lowCharBound;
-					if (addr == outputData.size() - 1 - 5)	cout << outputData[outputData.size() - 1 - 5] << endl;
-				}
-			}
-
-		}
-
-		//Export the string to the file
-		fileOut << outputData << endl;
-
-		//Incriment the final character
-		outputData[outputData.size()-1]++;
-
-	}
-	fileOut.close();
-}
-
 
 char genRandomChar()
 {
-	return rand() % (highCharBound - lowCharBound) + lowCharBound;
+	int ret =  rand() % (highCharBound - lowCharBound - 1) + lowCharBound;
+	if (ret == 64) ret++;		//Avoid adding a second '@' symbol
+	return ret;
+}
+
+string genRandStr(int length)
+{
+	string ret;
+	for (int i = 0; i < length; i++) ret.push_back(genRandomChar());
+	return ret;
 }
 
 void generateTestData2()
 {
 	srand(time(NULL));
 
-	string data;
+	fileOut.open(inputFile);
 
-	string name;
-	string domain;
-	string extension = "com";
+	const int nameLength = 5;
+	const int domainLength = 5;
+	const int extensionLength = 3;
+	
+	const int beforeLength = 4;
+	const int afterLength = 4;
 
-	const int nameLength = 3;
-	const int domainLength = 2;
-
-	for (int i = 0; i < nameLength; i++)
+	//Generate a test dataset
+	for (int counter = 0; counter < numTests; counter++)
 	{
-		name.push_back(' ');
+		string name = genRandStr(nameLength);
+		string domain = genRandStr(domainLength);
+		string extension = genRandStr(extensionLength);
+
+		string beforeEmail = genRandStr(beforeLength);
+		string afterEmail = genRandStr(afterLength);
+		
+		fileOut << beforeEmail + " " + name + "@" + domain + "." + extension + " " + afterEmail << endl;
 	}
 
-	for (int i = 0; i < domainLength; i++)
-	{
-		domain.push_back(' ');
-	}
 
-
-
+	fileOut.close();
 
 }
 
 
 int main()
 {
-	//generateTestData();
+	generateTestData2();
 
 	fileIn.open(inputFile);
 	fileOut.open(outputFile);
@@ -174,7 +163,7 @@ int main()
 		std::getline(fileIn, line);
 		if (line.find('@') != string::npos)
 		{
-			fileOut << extractEmailFrom(line) << endl;
+			extractEmailFrom(line);
 		}
 
 	} while (fileIn.eof() == false);
