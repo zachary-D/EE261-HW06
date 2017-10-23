@@ -4,6 +4,7 @@ using std::cin;
 using std::cout;
 using std::endl;
 
+const int maxValue = 1000000000;
 
 int main()
 {
@@ -12,11 +13,15 @@ int main()
 	long long int sum = current;
 	cout << current << endl;
 
-	while (current < 1000000000)
+	while (true)
 	{
+		//Calculate the next number in the sequence
 		int next = last + current;
 		last = current;
 		current = next;
+
+		//If the new value in the sequence is less than maxValue, add it to the sum.  Otherwise, exit the loop
+		if (current >= maxValue) break;
 		sum += current;
 		cout << current << endl;
 	}
